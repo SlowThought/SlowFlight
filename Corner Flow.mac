@@ -1,0 +1,24 @@
+
+batch("C:/Users/Patrick.Patrick-Laptop/Documents/Source/SlowFlight/Corner Flow.mac");
+psi:B*x*f(y);
+u:diff(psi,y);
+v:-diff(psi,x);
+p:p(x,y);
+v*diff(u,y)+u*diff(u,x) = eta*(diff(u,y,2)+diff(u,x,2))+(-1)*diff(p,x)/rho;
+v*diff(v,y)+u*diff(v,x) = eta*(diff(v,y,2)+diff(v,x,2))+(-1)*diff(p,y)/rho;
+diff(%o7,x);
+diff(%o6,y);
+%o9/x/B;
+%o9;
+x*diff(f,y)*diff(f,y,2)*B^2-x*f*diff(f,y,3)*B^2 = eta*x*diff(f,y,4)*B;
+x*diff(f(y),y)*diff(f(y),y,2)*B^2-x*f(y)*diff(f(y),y,3)*B^2 = eta*x*diff(f,y,4)*B;
+x*diff(f(y),y)*diff(f(y),y,2)*B^2-x*f(y)*diff(f(y),y,3)*B^2 = eta*x*diff(f(y),y,4)*B;
+%o14/x/B;
+simplify(%o15);
+combine(%o15);
+%o15-eta*diff(f(y),y,4);
+%o18*(-1);
+%o19/eta;
+ratexpand(%o20);
+integrate(%o21,y);
+f4:B/eta*(f1*f2-f*f3);

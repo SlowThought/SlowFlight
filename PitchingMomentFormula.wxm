@@ -1,0 +1,21 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 12.04.0 ] */
+
+/* [wxMaxima: title   start ]
+Integration formula for Calculating Moment Coefficient
+   [wxMaxima: title   end   ] */
+
+/* [wxMaxima: input   start ] */
+v(x):=v1+(v2-v1)*(x-x1)/(x2-x1);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+integrate(((x-c4)*(1-v(x)^2)), x, x1, x2);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+factor(%o14);
+/* [wxMaxima: input   end   ] */
+
+/* Maxima can't load/batch files which end with a comment! */
+"Created with wxMaxima"$

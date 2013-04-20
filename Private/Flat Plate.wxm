@@ -1,0 +1,42 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 12.04.0 ] */
+
+/* [wxMaxima: title   start ]
+Cylinder on origin in uniform flow
+   [wxMaxima: title   end   ] */
+
+/* [wxMaxima: input   start ] */
+vbar: 1 - a^2/z^2;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+We find the complex potential via integration.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+Phi:= integrate(vbar, z);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+The imaginary part of the complex potential is the stream function. The zero valued stream function describes a circle.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+is_circle: a*e^(%i * theta);
+assume([equal, z, is_circle])$
+imagpart(Phi(z));
+forget([equal, z, is_circle])$
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+We rotate our viewpoint by the angle of attack alpha.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+z:c*e^(-%i* alpha);
+vbar:expand(vbar);
+Phi:simplify(expand(Phi));
+/* [wxMaxima: input   end   ] */
+
+/* Maxima can't load/batch files which end with a comment! */
+"Created with wxMaxima"$

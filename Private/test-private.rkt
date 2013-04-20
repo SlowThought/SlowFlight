@@ -1,0 +1,12 @@
+#lang racket/base
+(require rackunit)
+(provide (all-defined-out)
+         (all-from-out rackunit))
+
+;; Testing tolerance, based so far on experimentation
+(define epsilon 1e-14)
+  
+;; Check equality of complex numbers  
+(define-simple-check
+  (check-complex-= a b epsilon)
+  (<(magnitude(- a b))epsilon))

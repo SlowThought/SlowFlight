@@ -1,0 +1,85 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 12.04.0 ] */
+
+/* [wxMaxima: input   start ] */
+c:Rc + Ic * %i;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+c2:c * c;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+k:Rk+%i*Ik;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+e:k-k0-kp*c-kpp*c2;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+expand(%);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+Re2:real-part(e);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+real-part(%o5);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+realpart(%o5);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+imagpart(%o5);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+N2e:%o8^2 + %o9^2;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+expand;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+expand(expand;);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+expand(N2e);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+diff(%,kp,1);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+diff(%o12,kpp,1);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+%o13/2;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+simplify(%);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+ratsimp(%);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+ratsimp(%o15);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+ratsimp(%o14/2);
+/* [wxMaxima: input   end   ] */
+
+/* Maxima can't load/batch files which end with a comment! */
+"Created with wxMaxima"$
