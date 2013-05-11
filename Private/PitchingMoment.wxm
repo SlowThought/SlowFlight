@@ -6,69 +6,8 @@ Derive Pitching Moment
    [wxMaxima: title   end   ] */
 
 /* [wxMaxima: comment start ]
-Inputs to function:
-
-x0: Point about which we're calculating moment
-x1: Beginning of interval
-x2: End of interval
-v1: v at x1
-v2: v at x2
-
-We assume v linear between x1 & x2. We assume Vinf = 1. We neglect 
-constant in resulting relation for Cp, as its contribution will vanish
-when integrated around the entire foil.
-   [wxMaxima: comment end   ] */
-
-/* [wxMaxima: input   start ] */
-v:v1+x*(v2-v1)/(x2-x1);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
--v^2;
-factor(%);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-expand(%);
-cp:factor(%);
-cp * (x-x0);
-%*-(x2-x1)^2;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: comment start ]
-The last step has factored out constants. We'll have to reintroduce them later.
-   [wxMaxima: comment end   ] */
-
-/* [wxMaxima: input   start ] */
-expand(%);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-integrate(%,x,x1,x2);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: comment start ]
-The next step factors out a 12 that we also have to reintroduce later.
-   [wxMaxima: comment end   ] */
-
-/* [wxMaxima: input   start ] */
-ratsimp(12*%);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-factor(%);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: comment start ]
-We reintroduce (x2-x1), leaving -12(x2-x1), or 12(x1-x2), still to go.
-   [wxMaxima: comment end   ] */
-
-/* [wxMaxima: input   start ] */
-%/(x2-x1);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: comment start ]
-And that appears to be as simple as I can make it. Some things may become obvious when I code it up.
+Ok, I ended up using none of this. My pitching moment formula is documented in
+(and was pretty much derived on the fly in) the comments of "inviscid.rkt".
    [wxMaxima: comment end   ] */
 
 /* Maxima can't load/batch files which end with a comment! */
