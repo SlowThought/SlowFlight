@@ -8,9 +8,9 @@
 
 ;; Provide contracts for zfoil functions to be exported
 (require"airfoils.rkt"
-        "private/geometry.rkt"
-        "private/inviscid.rkt"
-        "private/plots.rkt"
+        "Private/geometry.rkt"
+        "Private/inviscid.rkt"
+        "Private/plots.rkt"
         racket/contract)
 (provide[contract-out
          ; From airfoils.rkt
@@ -28,7 +28,10 @@
          (MagV(-> vector? geometry? vector?))
          (CL(->* (real? geometry?)
                  ([vectorof real?])
-                 real?))  
+                 real?))
+         (CM(->* (real? geometry?)
+                 ([vectorof real?])
+                 real?))
          (Cp(-> real? real?))]
          ; From plots.rkt (I have to figure out what 'renderer-tree' is in contract-speak)
          plot-foil
