@@ -7,7 +7,9 @@
          "zvector.rkt")
 
 (module+ test
-  (require  "circles.rkt"
+  (require  plot
+            racket/vector
+            "circles.rkt"
             "test-private.rkt"
             "../airfoils.rkt")
   (printf"inviscid.rkt running tests.~n")
@@ -119,10 +121,7 @@
 
 ;; Find lift coefficient
 (define (CL alpha geo 
-            [vs (MagV (V (- alpha
-                            (geometry-alpha-0L geo))
-                         geo)
-                      geo)])
+            [vs (MagV (V alpha geo) geo)])           
   (define zs(geometry-U geo))
   (define n (sub1(vector-length zs)))
   (let loop[(i 0)(CX 0.)(CY 0.)]
@@ -134,27 +133,40 @@
              (x2(real-part z2))
              (y2(imag-part z2))
              (v1(vector-ref vs i))
-             (v2(vector-ref vs(add1 i)))
-             (int(integrate v1 v2 2))]
+             (v2(vector-ref vs(add1 i)))]
          (loop(add1 i)
-              (+ CX (*(- x2 x1)int))
-              (+ CY (*(- y2 y1)int))))
-       (/ (- (* CX (cos alpha))
-             (* CY (sin alpha)))
-          (geometry-user-chord geo)))))
+              (+ CX (integrate v1 v2 x1 x2 2))
+              (+ CY (integrate v1 v2 y1 y2 2))))
+       (-(/ (+ (* CX (cos alpha))
+               (* CY (sin alpha)))
+            (geometry-user-chord geo))))))
 
 (module+ test
   (define lift-tolerance 0.1)
   ; We first test the integration routine by providing a bogus velocity distribution
   ; THIS CHECK ASSUMED VALUE OF J-POINTS. MUST WRITE MORE GENERIC VERSION
-;  (check-= (CL 0. j-geo #(-1. -1.1 -1.2 -1.3 -1.4 -1.5 -1.6 -1.7 -1.8 -1.9 -1.991 0. 1.
-;                              1.  1.   1.   1.   1.   1.   1.   1.   1.   1.)) 2/3 lift-tolerance)
+  ;  (check-= (CL 0. j-geo #(-1. -1.1 -1.2 -1.3 -1.4 -1.5 -1.6 -1.7 -1.8 -1.9 -1.991 0. 1.
+  ;                              1.  1.   1.   1.   1.   1.   1.   1.   1.   1.)) 2/3 lift-tolerance)
   ; We test a real airfoil w/ free stream || zero lift line
   (let-values[((zs comment)(read-dat-file"../Dat/r1046.dat"))]
     (let*[(geo(make-geometry zs))
           (a0L(geometry-alpha-0L geo))
           (vs (MagV(V a0L geo)geo))]
-      (check-= (CL a0L geo vs) 0. lift-tolerance))))
+      (display (plot (points (vector-map 
+                              (λ(z v)(vector (real-part z)(-(Cp v))))
+                              zs vs))
+                     #:title (format "Alpha = ~a" a0L)
+                     #:y-label "-Cp"))
+      (check-= (CL a0L geo vs) 0. lift-tolerance)
+      ; Now we check at positive lift
+      (define alpha1 (+ a0L 0.1))
+      (set! vs (MagV (V alpha1 geo) geo))
+      (display (plot (points (vector-map 
+                              (λ(z v)(vector (real-part z)(-(Cp v))))
+                              zs vs))
+               #:title (format "Alpha = ~a" alpha1)
+               #:y-label "-Cp"))
+      (check-= (CL alpha1 geo vs)(* 0.2 pi) lift-tolerance))))
 
 ;; Find moment coefficient
 ; z0 is the point about which we're calculating the moment.
@@ -183,17 +195,17 @@
     ; dM = -(e + fs)(g + hs + is^2)ds
     ;    = -[eg + (fg + eh)s + (fh + ei)s^2 + fis^3]ds
     ;  M = -[egs + 1/2(fg + eh)s^2 + 1/3(fh + ei)s^3 + 1/4(fi)s^4]
-    (- (+ (* e g |s|)
-          (* (/ 2.)(+ (* f g)(* e h))(sqr |s|))
-          (* (/ 3.)(+ (* f h)(* e i))(expt |s| 3))
-          (* (/ 4.) f i (expt |s| 4))))))
+    (+ (* e g |s|)
+       (* (/ 2.)(+ (* f g)(* e h))(sqr |s|))
+       (* (/ 3.)(+ (* f h)(* e i))(expt |s| 3))
+       (* (/ 4.) f i (expt |s| 4)))))
         
 (module+ test
   ; With constant velocity over interval, moment about midpoint should be zero
   (check-=  0.(dM .5 0. 1. 1. 1.) epsilon)
   ; Pressure, as defined, should be a suction. Moment from above distribution,
   ; measured about beginning of interval, should be -.5
-  (check-= -.5(dM 0. 0. 1. 1. 1.) epsilon))
+  (check-= .5(dM 0. 0. 1. 1. 1.) epsilon))
 
 
 ; We sum total moment and non-dimensionalize
