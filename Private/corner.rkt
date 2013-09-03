@@ -5,13 +5,14 @@
    requiring corner.rkt, and I will have successfully used code to document the reasons behind the value of
    a (multiple of a) constant. |#
 
-;(provide (H0 B eta x)      ; Shape factor near stagnation point
-;         (delta*0 B eta))  ; Displacement thickness near stagnation point
-;         (theta0  B eta x)); Momentum thickness near ...
+(provide (all-defined-out))
+;(provide (H0 B nu x)      ; Shape factor near stagnation point
+;         (delta*0 B nu))  ; Displacement thickness near stagnation point
+;         (theta0  B nu x)); Momentum thickness near ...
 
-(require racket/math)
+(require racket/math racket/list)
 
-#| A solution to NS of the form Psi = Bxf(y) is assumed. y and f are non-dimensionalized by the factor (B/eta)^1/2
+#| A solution to NS of the form Psi = Bxf(y) is assumed. y and f are non-dimensionalized by the factor (B/nu)^1/2
    Capital letters represent the resulting non-D variables. When all the calculus and algebra are done, we are left
    with the ODE and BCs:
 
@@ -79,25 +80,11 @@
             (integrate h F1 F2 F3 F4 F5)
             (integrate h F2 F3 F4 F5))))
 
-(module+ test
-  (printf "Y\tF\tF1\tF2~n")
-  (define h .1)
-  (define (4digits x)
-    (/ (round (* 1000. x)) 1000.))
-  (let loop[(Y 0)
-            (F 0)
-            (F1 0)
-            (F2 1.231)]
-    (printf"~a\t~a\t~a\t~a~n" (4digits Y)(4digits F)(4digits F1)(4digits F2))
-    (cond[(< Y 10.)
-          (let-values([(F F1 F2)(integrate-F h F F1 F2)])
-            (loop (+ Y h) F F1 F2))])))
-
 #| We need a concept of "big enough" for infinity and "small enough" for step size.
    I use White's values, although they seem very conservative, at least in terms of
    the sensitivity of the final answers |#
 
-(define infty 10.)
+(define infty 5.)
 (define h .02)
 
 ; We need a good guess at F'', which we find through interpolation
@@ -116,5 +103,70 @@
 (define big-F1 (F2->F1 big-F2))
 (define F2 (+ small-F2 (/(*(- 1. small-F1)(- big-F2 small-F2))(- big-F1 small-F1))))
             
+(module+ test
+  (printf "Y\tF\tF1\tF2~n")
+  (define h .1)
+  (define (4digits x)
+    (/ (round (* 1000. x)) 1000.))
+  (let loop[(Y 0)
+            (F 0)
+            (F1 0)
+            (F2 F2)]
+    (printf"~a\t~a\t~a\t~a~n" (4digits Y)(4digits F)(4digits F1)(4digits F2))
+    (cond[(< Y 10.)
+          (let-values([(F F1 F2)(integrate-F h F F1 F2)])
+            (loop (+ Y h) F F1 F2))])))
 
+; refine F2
+(set! small-F2 (- F2 .001))
+(set! small-F1 (F2->F1 small-F2))
+(set! big-F2 (+ F2 .001))
+(set! big-F1 (F2->F1 big-F2))
+(set! F2 (+ small-F2 (/(*(- 1. small-F1)(- big-F2 small-F2))(- big-F1 small-F1))))
+
+; We accept the resulting solution as definitive
+(define-values (Ys Fs F1s F2s)
+  (let[(Y 0.)
+       (F 0.)
+       (F1 0.)
+       (F2 F2)] 
+    (for/lists
+        (Ys Fs F1s F2s)
+      [(count(in-range (/ infty h)))]
+       ; to capture first point
+      (let[(old-Y Y) 
+           (old-F F)
+           (old-F1 F1)
+           (old-F2 F2)]
+        (set!-values (F F1 F2)(integrate-F h F F1 F2))
+        (set! Y (+ h Y))
+        (values old-Y old-F old-F1 old-F2)))))
+
+; Displacement thickness
+(define D*0 (- (last Ys)(last Fs)))
+(define (delta*0 B nu)
+  (* D*0(sqrt (/ B nu))))
+
+#| Momentum thickness
+   Non-D version is integral wrt Y over interval [0, inf] of F'-(F')^2,
+   if G'   = F'(1-F')
+      G''  = F''(1-F')-F'F''=F''-2F'F''
+      G''' = F'''-2(F'')^2-2F'F'''
+   This sets us up well for my integral routine. |#
+(define THETA0
+  (- D*0
+     (for/fold[(G 0.)]
+              [(F Fs)
+               (F1 F1s)
+               (F2 F2s)]
+       (let[(F3(F3 F F1 F2))]
+         (integrate h G (* F1(- 1. F1))
+                        (- F2(* 2. F1 F2))
+                        (- F3 (* 2. (sqr F2))(* 2. F1 F3)))))))
+       
+(define (theta0 B nu)
+  (* THETA0 (sqrt (/ B nu))))
+
+; Starting shape factor
+(define H0 (/ D*0 THETA0))
 
