@@ -35,7 +35,11 @@
   c0; center of circle onto which airfoil is mapped.;
   r ; radius of circle onto which airfoil is mapped.
   a ; real, approximately 1/4 of chord
-  dT/dc)) ; derivative of transform, which will be used to calculate velocity
+  dT/dc ; derivative of transform, which will be used to calculate velocity
+  
+  ; Geometric quantities that are calculated, if needed, and cached
+  [S #:mutable])) ; distance CCW from trailing edge - don't use mutablility, it's an optimization
+                  ; to defer calculation of S, and avoid multiple calculations
 
 ;; Our input is the user's coordinates
 (define(make-geometry U)
@@ -93,7 +97,7 @@
           (loop(add1 i)))
         (begin
           (vector-set! dT/dc i 0.)
-          (geometry U nU iLE chord-line c/4 chord user-chord (+ rotate(angle(- a c0))) N translate rotate C c0 r a dT/dc))))))
+          (geometry U nU iLE chord-line c/4 chord user-chord (+ rotate(angle(- a c0))) N translate rotate C c0 r a dT/dc #f))))))
 
 
 ;; Cast a user point in normal coordinates
@@ -208,6 +212,28 @@
                     (dk/dc(f4 c1)(f4 c2)(f4 c3)c1 c2 c3)0.06); Fair fit ~ 3% error
     (check-complex-=(cos c2)
                     (dk/dc(f5 c1)(f5 c2)(f5 c3)c1 c2 c3)0.001))); Good fit ~ 0.2% error
+
+;; Calculate distance from TE, if required
+(define (get-S geo) ; overrides default, implements caching behaviour
+  (let[(S (geometry-S geo))]
+    (if S S ; we've asked for S before
+        (let[(N (geometry-N geo))]
+          (define old-n (vector-ref N 0))
+          (define s 0.)
+          (set-geometry-S! geo 
+                           (for/vector [(n N)]
+                             (set! s (+ s (magnitude (- n old-n))))
+                             (set! old-n n)
+                             s))
+          (geometry-S geo)))))
+ 
+(module+ test
+  (let[(my-geo (make-geometry #(4 0+3i 4)))]
+    (check-true (not (geometry-S my-geo)))
+    (check-true (eqv? (get-S my-geo)
+                      #(0 5 10))) ; exercises first time code
+    (check-true (eqv? (get-S my-geo)
+                      #(0 5 10))))) ; exercises cache code
 
 ;; Unit test code and exports
 (module+ test
