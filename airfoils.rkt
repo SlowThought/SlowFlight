@@ -129,12 +129,9 @@
                         0.89896-0.00451i 0.94947+0.00068i 1.00000+0.00000i))
 ;; Generate a Joukowski airfoil
 (require racket/math
-         "Private/circles.rkt"
          "Private/joukowsky.rkt")
-(define (joukowsky a e n)
-  (for/vector
-      [(c(JAGC a e n))]
-    (J a c)))
+(define (joukowsky-foil j0 c0 wte n)
+  (define-values (zte a b)(make-dependent-parameters j0 c0 wte))
 (module+ test
   (let[(n 21)]
     (check-eq? n (vector-length(joukowsky 0.25 -0.01 n)))))
