@@ -3,11 +3,8 @@
 (require plot)
 (provide (all-defined-out))
 (module+ test
-  (require racket/math ; for sqr
-           "../airfoils.rkt"  ; for geometries to test
-           "geometry.rkt"     ; for analysis of geometries
-           "inviscid.rkt"     ; for Cp
-           "test-private.rkt"); for rackunit
+  (require racket/math
+           "../test-private.rkt");
   (printf"plots.rkt running tests.~n"))
 
 ;; plot airfoils. Accepts one or more vectors of complex.
@@ -27,21 +24,24 @@
                                   #:y-max y-max))
                     lol-of-zs)))))
 (module+ test
-  (display(plot-foil naca-4412 naca-66_2-415))
-  (printf "~nYou should see a reasonable depiction of NACA 4412, 66_2-415.~n"))
+  (define crude-foil #(1. 0.3+.12i 0+.04i 0.2 1.)) 
+  (display (plot-foil crude-foil))
+    (printf "~nYou should see a plot of a crude airfoil.~n"))
 
 ;; plot coefficients vs x. voz is a vector of complex representing airfoil shape.
 ;; loloc is one or more lists of real (typically nondimensional cooefficients of some kind).
 (define(plot-vs-x voz . loloc)
-  (let*[(lox(map real-part(vector->list voz)))
+  (let*[(loz (vector->list voz))
+        (lox(map real-part loz))
+        (lov(map complex->vector loz))
         (tree-of-v(map(λ(loc)(map(λ(x c)(vector x c))lox loc))
                       loloc))]
-    (plot (cons (axes)
+    (plot (list (axes)
+                (lines lov)
                 (map points tree-of-v)))))
 (module+ test
-  (display(plot-vs-x naca-66_2-415 (map (λ(v)(-(Cp(magnitude v))))
-                                        (vector->list(V 0. (make-geometry naca-66_2-415))))))
-  (printf"~nYou should see a plot of Cp vs x for the NACA 66_2-415.~n"))
+  (display(plot-vs-x crude-foil (list 0. 1.5 2. .75 0.)))
+  (printf"~nYou should see a simulated plot of Cp vs x.~n"))
 
 ;; zfoil often uses arrays of complex, plot expects lists of vectors - if this were C I could 
 ;; probably speed with a type-cast

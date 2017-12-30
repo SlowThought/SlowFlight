@@ -129,11 +129,15 @@
                         0.89896-0.00451i 0.94947+0.00068i 1.00000+0.00000i))
 ;; Generate a Joukowski airfoil
 (require racket/math
-         "Private/joukowsky.rkt")
+         "Private/Inviscid/joukowsky.rkt")
 (define (joukowsky-foil j0 c0 wte n)
-  (define-values (zte a b)(make-dependent-parameters j0 c0 wte))
+  (define-values (zte a b)(make-dependent-parameters c0 j0 wte))
+  (define dPhi (/(* 2 pi)n))
+  (define C (make-circle c0 a))
+  (define J (JofZ j0 b))
+  (build-vector (add1 n) (λ(i) (J(C(* dPhi i))))))
 (module+ test
-  (let[(n 21)]
-    (check-eq? n (vector-length(joukowsky 0.25 -0.01 n)))))
+  (require "Private/Utility/plots.rkt")
+  (plot-foil (joukowsky-foil 0.5 0.52+0.01i 1. 21)))
 (module+ main
   (require(submod ".." test)))
