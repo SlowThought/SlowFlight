@@ -1,5 +1,6 @@
 #lang racket/base
-(require racket/math)
+(require math/number-theory
+         racket/math)
 (provide find-minimum); powell)
 (module+ test
   (require plot "../test-private.rkt")
@@ -71,25 +72,81 @@
              (+ (* 3/2 pi) 1.) 0.00001)
     (printf "~nIf no error after chart, sine minimum evaluated correctly.~n")))
 
-;;; Find minimum of real function of a complex variable
-;(define (powell f z0 h epsilon)
-;  ; First we move in h direction
-;  (let[(z1(+ z0(* h(find-minimum(f(- z0 h))
-;                                (f z0)
-;                                (f(+ z0 h))))))]
-;    ; Then we move normal to it
-;    (let*[(i(* 0+i h))
-;          (z2(+ z1(* i(find-minimum(f(- z1 i))
-;                                   (f z1)
-;                                   (f(+ z1 i))))))
-;          ; Then we find a new step that sort of is near the steepest gradient
-;          (new-h(- z2 z0))]
-;      (if (< (magnitude new-h) epsilon); we're done
-;          z2; and we return the point corresponding to the minimum
-;          (powell f z2 new-h epsilon))))); else we search some more in a hopefully better direction
-;(module+ test
-;  (check-= (magnitude(powell (λ(z)(test-function(real-part z)(imag-part z)))-10.0+100.0i 1.0 epsilon))
-;           0.0 epsilon))
+;; Find minimum of real function of vector of reals of arbitrary dimension.
+;; Initially, search is along normal unit vectors. Search results are used to
+;; modify the search vectors to approximate a gradient descent.
+(define (powell f x0 h epsilon max)
+  ; f(x) is function to be minimized - x is a vector
+  ; x0 is starting position, a vector
+  ; h is initial step size along search vector
+  ; epsilon is step size limit, if we move less than epsilon in a given direction, we stop
+  ; max is the max number of iterations of the algorithm
+  (define n (vector-length x0))
+  (define n+1 (add1 n))
+  (define maxi (* max n))
+  ; We use xs and s as ring buffers
+  (define (index-s i)(with-modulus n (mod i)))
+  (define (index-x i)(with-modulus n+1 (mod i)))
+  ; Build initial set of search vectors
+  (define s (build-vector n (λ (i)
+                              (define v (make-vector n 0.))
+                              (vector-set! v i 1.)
+                              v)))
+  ; History of search
+  (define xs (make-vector n+1 x0))
+  (define fs (make-vector n+1 (f x0)))
+  
+  ; Search along initial directions
+  (vector-set! fs 0 (f x0))
+  (for [(i (in-range n))]
+    (define-values (x* f*)(explore-along-s f (vector-ref xs i)(vector-ref s i) h epsilon))
+    (vector-set! xs (add1 i) x*)
+    (vector-set! fs (add1 i) f*))
+  ; Adjust directions based on previous search results (excluding last one, as that direction
+  ; is fruitless, for the moment).
+  (for [(i (in-range n maxi))]
+    (vector-set! s (index-s i)(vector-map - (vector-ref xs (index-x (sub1 i)))
+                                            (vector-ref xs (index-x (- i n)))))
+    (define-values (x* f*)(explore-along-s f (vector-ref xs (index-x i))(vector-ref s (index-s i)) h epsilon))
+    (vector-set! xs (index-x (add1 i)) x*)
+    (vector-set! fs (index-x (add1 i)) f*))
+  (values (vector-ref xs (index-x maxi))
+          (vector-ref fs (index-x maxi))))
+;; powell helper functions
+(require racket/vector)
+(define (explore-along-s f xm s h epsilon)
+  (let*[(xl (vector-map (λ (x s)(- x (* s h))) xm s))
+        (xr (vector-map (λ (x s)(+ x (* s h))) xm s))
+        (fl (f xl))
+        (fm (f xm))
+        (fr (f xr))
+        (ds (find-minimum fl fm fr
+                        (- h)0.  h))
+        (x* (vector-map (λ (x s) (+ x (* s ds))) xm s))
+        (f* (f x*))]
+    (values x* f*)))
+              
+(module+ test
+  ; Our test function is a hopefully well behaved quartic, with square  terms that will skew things enough to keep
+  ; the search interesting
+  (define (f xs)
+    (let[(v (vector-ref xs 0))
+         (w (vector-ref xs 1))
+         (x (vector-ref xs 2))
+         (y (vector-ref xs 3))
+         (z (vector-ref xs 4))]
+      (+ (* 3 (- v 1)(- v 1)(- v 1)(- v 1))
+         (* 2 (- w 2)(- w 2)(- w 2)(- w 2))
+         (* 4 (- x 3)(- x 3)(- x 3)(- x 3))
+         (* 7 (- y 4)(- y 4)(- y 4)(- y 4))
+         (* 5 (- z 6)(- z 6)(- z 6)(- z 6))
+         (* v x)
+         (* w z))))
+  ; Check values derived from testing involving lots of printf statements which have since been edited out. Consider
+  ; adding debug argument to optionally enable noisy output
+  (define-values (x* f*)(powell f #(0 0 0 0 0) 0.1 0.01 2))
+  (check-equal? x* #(0.7186233703322971 1.975163313924521 3.384259279958702 4.775251092524473 5.056951459999327))
+  (check-= f* 19.00948681490754 epsilon))
 (module+ main
   (require(submod".."test)))
 
