@@ -13,14 +13,13 @@
 (define (V∞ α) (exp (* 0+i α))) 
 
 ;; The potential function and its derivative use the conjugate of the velocity (C-R vs continuity)
-(define (Φ_Uniform_Flow Vinf c0)(λ(z)(* (conjugate Vinf) (- z c0)))) ; the somewhat arbitrary subtraction of c0 is convenient later
+(define (Φ_Uniform_Flow Vinf c0)(λ(z)(* (conjugate Vinf) (- z c0))))
 (define (dΦ/dz_UF Vinf)(λ(z)(conjugate Vinf)))
 
 (module+ test
   (define alpha 0.3)
   (define Vinf (V∞ alpha))
-  (define c0 1+1i)
-  (define UF (Φ_Uniform_Flow Vinf c0))
+  (define UF (Φ_Uniform_Flow Vinf))
   (define dUF (dΦ/dz_UF Vinf))
   (display
    (plot (list (contours (λ(x y)(imag-part (UF (make-rectangular x y)))) #:levels 5)
@@ -37,6 +36,7 @@
 (define (dΦ/dz_Dub α γ c0)(λ(z)(/(* -1. γ (exp (* 0+i α)))(- z c0)(- z c0))))
 
 (module+ test
+  (define c0 1+1i)
   (define Dub (Φ_Doublet alpha 1 c0))
   (define dDub(dΦ/dz_Dub alpha 1 c0))
   (display
@@ -86,42 +86,3 @@
                  #:y-min 0
                  #:y-max 2))
   (printf "~nFlow about a vortex.~n"))
-
-
-#| Flow about a cylinder with circulation  centered on c0. The cylinder is defined by z = ae^iθ + c0, a complex. 
-   We expect a and zte to be consistent with the definitions in "joukowski.rkt" (zte = a + c0), and that these values
-   are already available. |#
-
-(define (cylinder-parameters a)
-  (let*[(|a| (magnitude a))
-        {|a|^2 (* a a)}
-        (α0L (angle a))]
-    (values |a| |a|^2 α0L)))
-
-(define (Φ_cylinder c0 |a| |a|^2 α α0L)
-  (λ(z)(+ ((Φ_Uniform_Flow (V∞ α) c0) z)
-          ((Φ_Doublet α |a|^2 c0) z)
-          ((Φ_Vortex (* 2 |a| (sin (- α α0L))) c0) z))))
-
-
-(define (dΦ/dz_cylinder c0 |a| |a|^2 α α0L)
-  (λ(z)(+ ((dΦ/dz_UF (V∞ α)) z)
-          ((dΦ/dz_Dub α |a|^2 c0) z)
-          ((dΦ/dz_Vortex (* 2 |a| (sin (- α α0L))) c0) z))))
-
-(module+ test
-  (let-values ([(|a| |a|^2 α0L)(cylinder-parameters a)])
-    (display (plot (list (contours (λ(x y)(imag-part ((Φ_cylinder c0 |a| |a|^2 alpha α0L)(make-rectangular x y))))
-                                   #:levels 20)
-                         (vector-field (λ(x y) ; For sake of clarity in the plot, and irrelevance to the eventual application,
-                                               ; we suppress the display of velocity inside the cylinder
-                                               (if (< (+ (* (sub1 x)(sub1 x))(* (sub1 y)(sub1 y)))(* a a))
-                                                   #(0 0)
-                                                   (complex->vector
-                                                    (conjugate
-                                                     ((dΦ/dz_cylinder c0 |a| |a|^2 alpha α0L)(make-rectangular x y))))))))
-                 #:x-min 0
-                 #:x-max 2
-                 #:y-min 0
-                 #:y-max 2)))
-  (printf "~nFlow about a cylinder with circulation.~n"))
