@@ -1,5 +1,11 @@
 #lang racket/base
-#| Describes an airfoil as a vector of complex numbers in the user's coordinate system (U space),
+#| THIS FILE IS DEPRECATED. The intermediate N space is unneeded. U space is now W space, C space is now Z space, and
+   the mapping is performed in one step, w = J(z) + K(z).
+
+   The functionality of this file will mostly reside in transform.rkt. The files relying on this one eventually will
+   not. At that point, this file will be deleted.
+
+Describes an airfoil as a vector of complex numbers in the user's coordinate system (U space),
    a 'normalized' system that ensures the chord is parallel to the x axis, and centered on the origin (N space),
    and a 'cylinder' space, containing the cylinder to which the user's airfoil will be mapped (C space). |#
 (provide(all-defined-out))

@@ -1,13 +1,40 @@
 #lang racket/base
 #| This file is part of zfoil, written by Patrick King. It is covered by LGPL 3+. Mention my name. I'll be happy.
-
    Functions for describing the inviscid flow around a circle are developed using complex potentials.
 |#
+
 (require racket/math) ; for complex functions
-(provide make-circle
-         cylinder-parameters
-         Φ_cylinder
-         dΦ/dz_cylinder)
+(provide make-circle           ; complex center, complex radius -> ((function real angle) -> complex on circle)
+         cylinder-parameters   ; complex radius -> magnitude radius, norm^2 radius, α0L
+         Φ_cylinder            ; complex center, magnitude radius, norm^2 radius, α0L -> complex potential
+         dΦ/dz_cylinder)       ; ... -> complex derivative
+
+
+;; First, we define the cylinder about which we wish to determine the flow
+(define (make-circle z0 r0)
+         (λ (θ)(+ (* r0 (exp (* 0+i θ))) z0)))
+
+#| Flow about a cylinder with circulation  centered on c0. The cylinder is defined by z = ae^iθ + c0, a complex. 
+   We expect a and zte to be consistent with the definitions in "joukowski.rkt" (zte = a + c0), and that these values
+   are already available. |#
+
+(define (cylinder-parameters a)
+  (let*[(na (magnitude a))
+        {na^2 (* na na)}
+        (α0L (angle a))]
+    (values na na^2 α0L)))
+
+(define (Φ_cylinder c0 na na^2 α α0L)
+  (λ(z)(+ ((Φ_Uniform_Flow (V∞ α) c0) z)
+          ((Φ_Doublet α na^2 c0) z)
+          ((Φ_Vortex (* 2 na (sin (- α α0L))) c0) z))))
+
+
+(define (dΦ/dz_cylinder c0 na na^2 α α0L)
+  (λ(z)(+ ((dΦ/dz_UF (V∞ α)) z)
+          ((dΦ/dz_Dub α na^2 c0) z)
+          ((dΦ/dz_Vortex (* 2 na (sin (- α α0L))) c0) z))))
+
 (module+ test
   (printf "potential.rkt tests running.~n")
   (require plot
@@ -19,10 +46,6 @@
       (let [(z (make-rectangular x y))]
         (if (< (magnitude (- z c)) r) #(0 0)
              (complex->vector (f z)))))))
-
-;; First, we define the cylinder about which we wish to determine the flow
-(define (make-circle z0 r0)
-         (λ (θ)(+ (* r0 (exp (* 0+i θ))) z0)))
 
 (module+ test
   (define c0 1+i)
@@ -92,7 +115,7 @@
            #:x-max 4
            #:y-min -2
            #:y-max 4)))
-  (printf "~nFlow about a cylinder, no circulation.~n")))
+  (printf "~nUniform flow + doublet = flow about a cylinder, no circulation.~n")))
 
 ;; Vortex centered on c0
 (define (Φ_Vortex Γ c0) (λ(z) (* 0+i Γ (log (- z c0)))))
@@ -110,26 +133,6 @@
   (printf "~nFlow about a vortex.~n"))
 
 
-#| Flow about a cylinder with circulation  centered on c0. The cylinder is defined by z = ae^iθ + c0, a complex. 
-   We expect a and zte to be consistent with the definitions in "joukowski.rkt" (zte = a + c0), and that these values
-   are already available. |#
-
-(define (cylinder-parameters a)
-  (let*[(na (magnitude a))
-        {na^2 (* na na)}
-        (α0L (angle a))]
-    (values na na^2 α0L)))
-
-(define (Φ_cylinder c0 na na^2 α α0L)
-  (λ(z)(+ ((Φ_Uniform_Flow (V∞ α) c0) z)
-          ((Φ_Doublet α na^2 c0) z)
-          ((Φ_Vortex (* 2 na (sin (- α α0L))) c0) z))))
-
-
-(define (dΦ/dz_cylinder c0 na na^2 α α0L)
-  (λ(z)(+ ((dΦ/dz_UF (V∞ α)) z)
-          ((dΦ/dz_Dub α na^2 c0) z)
-          ((dΦ/dz_Vortex (* 2 na (sin (- α α0L))) c0) z))))
 
 (module+ test
   (define-values (na na^2 α0L)(cylinder-parameters a))
