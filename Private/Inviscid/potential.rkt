@@ -11,8 +11,8 @@
 
 
 ;; First, we define the cylinder about which we wish to determine the flow
-(define (make-circle z0 r0)
-         (λ (θ)(+ (* r0 (exp (* 0+i θ))) z0)))
+(define (make-circle c0 a)
+         (λ (θ)(+ (* a (exp (* 0+i θ))) c0)))
 
 #| Flow about a cylinder with circulation  centered on c0. The cylinder is defined by z = ae^iθ + c0, a complex. 
    We expect a and zte to be consistent with the definitions in "joukowski.rkt" (zte = a + c0), and that these values

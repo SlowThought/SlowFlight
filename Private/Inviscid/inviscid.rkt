@@ -1,4 +1,5 @@
 #lang racket/base
+;;; This file is DEPRECATED. Most of its functionality live on in "potential.rkt". 
 ;;; Calculate circulation about a cylinder, resulting velocity about an airfoil, Cl, Cm
 (provide(all-defined-out))
 (require racket/math
