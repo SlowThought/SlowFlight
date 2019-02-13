@@ -1,9 +1,9 @@
 #lang racket/base
-#| THIS FILE IS DEPRECATED. The intermediate N space is unneeded. U space is now W space, C space is now Z space, and
+#| UNDER CONSTRUCTION. The intermediate N space is unneeded. U space is now W space, C space is now Z space, and
    the mapping is performed in one step, w = J(z) + K(z).
 
-   The functionality of this file will mostly reside in transform.rkt. The files relying on this one eventually will
-   not. At that point, this file will be deleted.
+   The functionality of this file will mostly reside in transform.rkt. This file probably will keep the record structure
+   stuff, and that will be its purpose, factoring out aerodynamics.
 
 Describes an airfoil as a vector of complex numbers in the user's coordinate system (U space),
    a 'normalized' system that ensures the chord is parallel to the x axis, and centered on the origin (N space),

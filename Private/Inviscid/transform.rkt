@@ -7,7 +7,9 @@
    the set of input points.
 |#
 
-(require "./potential.rkt") ; for circle generation
+(require racket/math              ; for π
+         "./potential.rkt"        ; for circle generation
+         "../Utility/powell.rkt") ; for optimization routines
 
 ;;; Fit transform to set of input points. ws are values of w in "warped", airfoil space
 (define (fit-transform-to-points ws)
@@ -24,16 +26,25 @@
   (define j0 (/ (+ wle wte) 2))
   (define c0 (+ j0 -0.01+0.01i)) ; somewhat reasonable for airfoils of chord 1, should work in any case
   ;; given j0, c0, find an error value
-   ; (let loop [(j0 j0)(c0 c0)(i 0)]
+   ; (let loop [(j0 j0)(c0 c0)(θs (build-vector n (λ(i) (* 2 pi (/ i n)))))(i 0)]
+  (define θs (build-vector n (λ(i) (* 2 pi (/ i n))))); this belongs in above loop.
+  
    ;    (if (= i 10)
-   ;        ; return relevant parameters
+   ;        (return-relevant-parameters)
    ;        (begin
               ; compute dependent parameters
               ; create (J z), (C θ)
               (define-values (J b2 zte)(make-J-transform j0 wte))
               (define a (- zte c0))
               (define C (make-circle c0 a))
-     ; find points on circle that map closely to ws
+              ; find points on circle that map closely to ws
+              ; may need more than one pass
+              (for [(i (in-range 1 (sub1 n-1)))]
+                (vector-set! θs i (find-best-θ (λ (t) (J (C t)))
+                                               (vector-ref ws i)
+                                               (vector-ref θs (sub1 i))
+                                               (vector-ref θs i)
+                                               (vector-ref θs (add1 i)))))
      ; sum up square of distance between ws and (J(C(θs))
      ; pick new j0, c0 to reduce error
   )
@@ -43,3 +54,15 @@
   (define b2 (/ (* (- wte j0)(- wte j0)) 4))
   (define zte (/ (+ j0 wte) 2))
   (values (λ (z) (+ (- z j0)(/ b2 (- z j0)))) b2 zte))
+
+; find θ such that f(θ) closest to w, given 3 guesses at θ
+(define (find-best-θ f w t1 t2 t3)
+  (define g (λ (t) (norm2 (- w (f t)))))
+  (find-minimum (g t1)(g t2)(g t3)
+                t1 t2 t3))
+
+; fast version of (* (magnitude z)(magnitude z))
+(define (norm2 z)
+  (define r (real-part z))
+  (define i (imag-part z))
+  (+ (* r r)(* i i)))
