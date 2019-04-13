@@ -87,56 +87,56 @@
      (* a2 b1 c3)
      (* a3 b2 c1)))
 
-(module+ test
-  (let [(f (λ(t) (+ (sqr (- t 3.)) 2.)))
-        (ϵ 0.01)]
-    (display (plot (function f 1 5 #:label "y = (x-3)^2 + 2")))
-    (check-= (powell-1 f 2 3 4 ϵ 1) 3. ϵ)
-    (check-= (powell-1 f 3 4 5 ϵ 1) 3. ϵ)
-    (check-= (powell-1 f 1 2 3 ϵ 1) 3. ϵ)
-    (check-= (powell-1 f 4 5 6 ϵ 1) 3. ϵ)
-    (check-= (powell-1 f 0 1 2 ϵ 1) 3. ϵ)
-    (printf "~nQuadratics should work in one step, regardless of initial guesses.")
-    (printf "~nIf no error after chart, quadratic minimum evaluated correctly.~n"))
-  (let*[(quiet-f (λ(t)(- (sqr (sqr (+ t 4.))) 7.)))
-        (f (λ(t) (begin
-                   (printf "q")
-                   (quiet-f t))))
-        (ϵ 0.01)(n 7)]
-    ; Parameters ϵ and n chosen to pass below tests. It's clear that the algorithm is 'kinda' working,
-    ; but quartics are hard, ϵ & n are not ideal, and it's unclear how to choose ϵ & n.
-    (display (plot (function quiet-f -8 0 #:label "y = (x+4)^4 - 7")))
-    (printf "~nQuartic tests - q represents a function evaluation.~n")
-    (printf "~n x = -4 central input ")
-    (check-= (powell-1 f -5 -4 -3 ϵ n) -4. ϵ)
-    (printf "~n x = -4 right input ")
-    (check-= (powell-1 f -6 -5 -4 ϵ n) -4. ϵ)
-    (printf "~n x = -4 left input ")
-    (check-= (powell-1 f -4 -3 -2 ϵ n) -4. ϵ)
-    ; Answer not within origninal bounds, so more tolerance (higher ϵ), and more time (higher n) needed.
-    (printf "~n inputs to left of -4. ")
-    (check-= (powell-1 f -7 -6 -5 ϵ (* 2 n)) -4. (* 2 ϵ))
-    (printf "~n inputs to right of -4. ")
-    (check-= (powell-1 f -3 -2 -1 ϵ (* 2 n)) -4. (* 2 ϵ))
-    (printf "~nYou'd think quartics would be easy. They're not. A place for further study. Read comments in code.~n"))
-  ; Any function with well defined, polite minima should work... if intial bounds avoid impolite extrema.
-  (let [(f (λ(t) (sin (- t 1.))))
-        (ϵ 0.01)]
-    (display (plot (function f 3 6 #:label "y = sin(x - 1)")))
-    (check-= (powell-1 f 3 4.5 6 ϵ 7)                                                           
-             (+ (* 3/2 pi) 1.) ϵ)
-    (printf "~nQuartic fix broke sine solution. n bumped from 5 to 7, ϵ to .01, to get pass. Art vs science.")
-    (printf "~nIf no error after chart, sine minimum evaluated correctly.~n"))
-  ; A realistic test similar to actual problem
-  (let*[(y (λ (x) (- 1/4 (/ x 4))))
-        (f (λ (x) (+ (sqr (- x 0.8))(sqr (- (y x) 0.07)))))]
-    (display (plot (function f -1 2 ; x bounds
-                             #:y-min 0
-                             #:y-max 4
-                             #:label "realistic case")))
-    (check-= (powell-1 f 0 1/2 1 0.005 5) 0.793 0.005)
-    (printf "~nIf no error after chart, realistic case evaluated correctly.~n"))
-  )
+;(module+ test
+;  (let [(f (λ(t) (+ (sqr (- t 3.)) 2.)))
+;        (ϵ 0.01)]
+;    (display (plot (function f 1 5 #:label "y = (x-3)^2 + 2")))
+;    (check-= (powell-1 f 2 3 4 ϵ 1) 3. ϵ)
+;    (check-= (powell-1 f 3 4 5 ϵ 1) 3. ϵ)
+;    (check-= (powell-1 f 1 2 3 ϵ 1) 3. ϵ)
+;    (check-= (powell-1 f 4 5 6 ϵ 1) 3. ϵ)
+;    (check-= (powell-1 f 0 1 2 ϵ 1) 3. ϵ)
+;    (printf "~nQuadratics should work in one step, regardless of initial guesses.")
+;    (printf "~nIf no error after chart, quadratic minimum evaluated correctly.~n"))
+;  (let*[(quiet-f (λ(t)(- (sqr (sqr (+ t 4.))) 7.)))
+;        (f (λ(t) (begin
+;                   (printf "q")
+;                   (quiet-f t))))
+;        (ϵ 0.01)(n 7)]
+;    ; Parameters ϵ and n chosen to pass below tests. It's clear that the algorithm is 'kinda' working,
+;    ; but quartics are hard, ϵ & n are not ideal, and it's unclear how to choose ϵ & n.
+;    (display (plot (function quiet-f -8 0 #:label "y = (x+4)^4 - 7")))
+;    (printf "~nQuartic tests - q represents a function evaluation.~n")
+;    (printf "~n x = -4 central input ")
+;    (check-= (powell-1 f -5 -4 -3 ϵ n) -4. ϵ)
+;    (printf "~n x = -4 right input ")
+;    (check-= (powell-1 f -6 -5 -4 ϵ n) -4. ϵ)
+;    (printf "~n x = -4 left input ")
+;    (check-= (powell-1 f -4 -3 -2 ϵ n) -4. ϵ)
+;    ; Answer not within origninal bounds, so more tolerance (higher ϵ), and more time (higher n) needed.
+;    (printf "~n inputs to left of -4. ")
+;    (check-= (powell-1 f -7 -6 -5 ϵ (* 2 n)) -4. (* 2 ϵ))
+;    (printf "~n inputs to right of -4. ")
+;    (check-= (powell-1 f -3 -2 -1 ϵ (* 2 n)) -4. (* 2 ϵ))
+;    (printf "~nYou'd think quartics would be easy. They're not. A place for further study. Read comments in code.~n"))
+;  ; Any function with well defined, polite minima should work... if intial bounds avoid impolite extrema.
+;  (let [(f (λ(t) (sin (- t 1.))))
+;        (ϵ 0.01)]
+;    (display (plot (function f 3 6 #:label "y = sin(x - 1)")))
+;    (check-= (powell-1 f 3 4.5 6 ϵ 7)                                                           
+;             (+ (* 3/2 pi) 1.) ϵ)
+;    (printf "~nQuartic fix broke sine solution. n bumped from 5 to 7, ϵ to .01, to get pass. Art vs science.")
+;    (printf "~nIf no error after chart, sine minimum evaluated correctly.~n"))
+;  ; A realistic test similar to actual problem
+;  (let*[(y (λ (x) (- 1/4 (/ x 4))))
+;        (f (λ (x) (+ (sqr (- x 0.8))(sqr (- (y x) 0.07)))))]
+;    (display (plot (function f -1 2 ; x bounds
+;                             #:y-min 0
+;                             #:y-max 4
+;                             #:label "realistic case")))
+;    (check-= (powell-1 f 0 1/2 1 0.005 5) 0.793 0.005)
+;    (printf "~nIf no error after chart, realistic case evaluated correctly.~n"))
+;  )
 
 #| powell-n finds minimum of real function of vector of reals of arbitrary dimension.
    Initially, search is along normal unit vectors. Search results are used to
@@ -185,6 +185,9 @@
                     (vector-set! v i 1.)
                     v)))
 
+(module+ test
+  (check-equal? (build-basis-vectors 2) #(#(1.0 0.0)#(0.0 1.0))))
+
 (require racket/vector)
 (define (explore-along-s f x0 s h ϵ n)
   (define (g t)
@@ -192,14 +195,33 @@
   (powell-1 g (- h) 0 h ϵ n))
               
 (module+ test
+  (require math/distributions math/matrix)
   ; Generate a random positive definite matrix
   (define (random-pd-matrix n)
-    "not done defining random-pd-matrix"))
+    (define nd (normal-dist 0. 0.5))
+    (define A
+      (build-matrix    
+       n n
+       (λ (i j) (if (= i j)
+                    (exp (sample nd)); Diagonal must be positive
+                    (sample nd)))))
+    (matrix+ A (matrix-transpose A)))
 
-    
-(module+ main
-  (require(submod".."test)))
+  ; Generate a random quadratic function that has a minimum f* at location x*
+  (define (gen-random-f f* x*)
+    (define n (vector-length x*))
+    (define A (random-pd-matrix n))
+    (define X* (->col-matrix x*))
+    (λ (x)
+      (define X (->col-matrix x))
+      (define dX (matrix- X X*))
+      (+ f* (matrix-ref (matrix* (matrix-transpose dX) (matrix* A dX))
+                       0 0))))
 
+  (let [(f (gen-random-f 1. #(1. 1.)))]
+    (for-each (λ (x)
+                 (printf "~nX: ~a f(X): ~a " x (f x)))
+              (list #(1. 1.) #(1. 2.) #(2. 1.) #(1. 0.) #(0. 1.)))))
 
 
 
