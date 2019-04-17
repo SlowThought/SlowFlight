@@ -202,11 +202,12 @@
     (define A
       (build-matrix    
        n n
-       (λ (i j) (if (= i j)
-                    (exp (sample nd)); Diagonal must be positive
-                    (sample nd)))))
+       (λ (i j) (cond [(= i j)
+                       (exp (sample nd))] ; Diagonal must be positive
+                      [(> i j) 0]         ; Building triangular matrix to ensure diagonal determines determinant
+                      [else (sample nd)]))))
+    (printf "A : ~s~n" A)
     (matrix+ A (matrix-transpose A)))
-
   ; Generate a random quadratic function that has a minimum f* at location x*
   (define (gen-random-f f* x*)
     (define n (vector-length x*))
@@ -217,11 +218,18 @@
       (define dX (matrix- X X*))
       (+ f* (matrix-ref (matrix* (matrix-transpose dX) (matrix* A dX))
                        0 0))))
-
-  (let [(f (gen-random-f 1. #(1. 1.)))]
-    (for-each (λ (x)
-                 (printf "~nX: ~a f(X): ~a " x (f x)))
-              (list #(1. 1.) #(1. 2.) #(2. 1.) #(1. 0.) #(0. 1.)))))
+  ; Tests of gen-random-f, expect them to be commented out of final code
+  (let*[(f (gen-random-f 1. #(1. 1.)))
+        (g (λ (x y) (f (vector x y))))]
+    (plot3d (surface3d g)
+            #:x-min 0
+            #:x-max 2
+            #:y-min 0
+            #:y-max 2))
+;    (for-each (λ (x)
+;                 (printf "~nX: ~a f(X): ~a " x (f x)))
+;              (list #(1. 1.) #(1. 2.) #(2. 1.) #(1. 0.) #(0. 1.)))))
+     #| end of gen-random-f tests |#)
 
 
 
