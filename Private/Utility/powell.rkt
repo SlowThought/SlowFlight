@@ -34,7 +34,7 @@
     xl is the left (min) guess at x
     xm is the middle (best) guess
     xr is the right (max) guess
-    h is the tolerance (if |x* - xm| < h, we quit)
+    ϵ is the tolerance (if |x* - xm| < ϵ, we quit)
     n is the iteration limit (if we don't converge relatively quickly, we quit)
 |#
 
@@ -137,63 +137,55 @@
 ;    (check-= (powell-1 f 0 1/2 1 0.005 5) 0.793 0.005)
 ;    (printf "~nIf no error after chart, realistic case evaluated correctly.~n"))
 ;  )
+; EVERYTHING ABOVE THIS LINE IS GOOD -- TESTS COMMENTED OUT FOR COMPILATION SPEED. UNCOMMENT TESTS BEFORE MOVING ON.
 
 #| powell-n finds minimum of real function of vector of reals of arbitrary dimension.
    Initially, search is along normal unit vectors. Search results are used to
    modify the search vectors to approximate a gradient descent.
 |#
 
-;(define (powell-n f x0 h ϵ max)
-;  ; f(x) is function to be minimized - x is a vector
-;  ; x0 is starting position, a vector
-;  ; h is initial step size along search vector
-;  ; epsilon is step size limit, if we move less than epsilon in a given direction, we stop
-;  ; max is the max number of iterations of the algorithm
-;  (define n (vector-length x0))
-;  (define n+1 (add1 n))
-;  (define maxi (* max n))
-;  ; We use xs and s as ring buffers
-;  (define (index-s i)(with-modulus n (mod i)))
-;  (define (index-x i)(with-modulus n+1 (mod i)))
-;  ; Build initial set of search vectors
-;  (define s (build-basis-vectors n))
-;  ; History of search
-;  (define xs (make-vector n+1 x0))
-;  (define fs (make-vector n+1 (f x0)))
-;  
-;  ; Search along initial directions
-;  (vector-set! fs 0 (f x0))
-;  (for [(i (in-range n))]
-;    (define-values (x* f*)(explore-along-s f (vector-ref xs i)(vector-ref s i) h ϵ))
-;    (vector-set! xs (add1 i) x*)
-;    (vector-set! fs (add1 i) f*))
-;  ; Adjust directions based on previous search results (excluding last one, as that direction
-;  ; is fruitless, for the moment).
-;  (for [(i (in-range n maxi))]
-;    (vector-set! s (index-s i)(vector-map - (vector-ref xs (index-x (sub1 i)))
-;                                            (vector-ref xs (index-x (- i n)))))
-;    (define-values (x* f*)(explore-along-s f (vector-ref xs (index-x i))(vector-ref s (index-s i)) h epsilon))
-;    (vector-set! xs (index-x (add1 i)) x*)
-;    (vector-set! fs (index-x (add1 i)) f*))
-;  (values (vector-ref xs (index-x maxi))
-;          (vector-ref fs (index-x maxi))))
+(define (powell-n f x0 h ϵ max)
+  ; f(x) is function to be minimized - x is a vector
+  ; x0 is starting position, a vector
+  ; h is initial step size along search vector
+  ; epsilon is step size limit, if we move less than epsilon in a given direction, we stop
+  ; max is the max number of iterations of the algorithm
+  (define n (vector-length x0))
+  (define n+1 (add1 n))
+  ; Search vectors
+  (define e (build-basis-vectors n))
+  (define ss e)
+  ; Search history
+  (define xs (make-vector n+1 (make-vector n 0)))
+  (vector-set! xs 0 x0)
+  (define fs (make-vector n+1))
+  (vector-set! fs 0 (f x0))
+  ; Perform search
+  (for*[(i (in-range max))
+        (j (in-range n))]
+    (define k (add1 j))
+    (let-values([(x* f*)(search-along-direction (vector-ref ss j)
+                                           (vector-ref xs j)
+                                           f h ϵ max)])
+      (vector-set! xs k x*)
+      (vector-set! fs k f*)))
+  ; Identify least fruitful search direction
+  ; Replace least fruitful with first
+  ; Replace first with best (from x0 to xn-2, we exclude last search direction because best should be normal to it)
+  (printf "powell-n isn't done yet.~n"))
 ;; powell helper functions
 
+
+; build-basis-vectors generates n normal vectors of dimension n
 (define (build-basis-vectors n)
   (build-vector n (λ (i)
                     (define v (make-vector n 0.))
                     (vector-set! v i 1.)
                     v)))
-
 (module+ test
   (check-equal? (build-basis-vectors 2) #(#(1.0 0.0)#(0.0 1.0))))
 
-(require racket/vector)
-(define (explore-along-s f x0 s h ϵ n)
-  (define (g t)
-    (f (vector-map (λ (x s) (+ x (* t s))) x0 s)))
-  (powell-1 g (- h) 0 h ϵ n))
-              
+; test infrastructure -- generate random nd quadratic equations
 (module+ test
   (require math/distributions math/matrix)
   ; Generate a random positive definite matrix
@@ -206,8 +198,8 @@
                        (exp (sample nd))] ; Diagonal must be positive
                       [(> i j) 0]         ; Building triangular matrix to ensure diagonal determines determinant
                       [else (sample nd)]))))
-    (printf "A : ~s~n" A)
-    (matrix+ A (matrix-transpose A)))
+    ;(printf "A : ~s~n" A) ; uncomment to debug. confidence is high.
+    (matrix+ A (matrix-transpose A))); Suspect, but have not proven, that this last step, making final matrix symmetrical, is unneccesary.
   ; Generate a random quadratic function that has a minimum f* at location x*
   (define (gen-random-f f* x*)
     (define n (vector-length x*))
@@ -218,19 +210,47 @@
       (define dX (matrix- X X*))
       (+ f* (matrix-ref (matrix* (matrix-transpose dX) (matrix* A dX))
                        0 0))))
-  ; Tests of gen-random-f, expect them to be commented out of final code
-  (let*[(f (gen-random-f 1. #(1. 1.)))
-        (g (λ (x y) (f (vector x y))))]
-    (plot3d (surface3d g)
-            #:x-min 0
-            #:x-max 2
-            #:y-min 0
-            #:y-max 2))
-;    (for-each (λ (x)
-;                 (printf "~nX: ~a f(X): ~a " x (f x)))
-;              (list #(1. 1.) #(1. 2.) #(2. 1.) #(1. 0.) #(0. 1.)))))
+  ;; Tests of gen-random-f, 2D examples consistently show expected result
+  ;  (let*[(f (gen-random-f 1. #(1. 1.)))
+  ;        (g (λ (x y) (f (vector x y))))]
+  ;    (plot3d (surface3d g)
+  ;            #:x-min 0
+  ;            #:x-max 2
+  ;            #:y-min 0
+  ;            #:y-max 2))
+  ;    (for-each (λ (x)
+  ;                 (printf "~nX: ~a f(X): ~a " x (f x)))
+  ;              (list #(1. 1.) #(1. 2.) #(2. 1.) #(1. 0.) #(0. 1.)))
      #| end of gen-random-f tests |#)
 
+; f-of-v->f-of-t casts a function of a vector, a starting point, and a search direction, to a 1d parametric function
+(require racket/vector)
+(define (f-of-v->f-of-t f x0 s)
+  (λ (t) (f (vector-map + x0 (vector-map (λ (x) (* t x)) s)))))
 
+(module+ test
+  (let*[(f (gen-random-f 3 #(0 0 1)))
+        (g (f-of-v->f-of-t f #(0 0 0) #(0 0 1)))]
+    (check-= (g 1) 3 0.00001)))
 
+; search-along-direction applies powell-1 to a function of a vector
+(define (search-along-direction s x f h ϵ max)
+  (let*[(g (f-of-v->f-of-t f x s))
+        (dt (powell-1 g (- h) 0 h ϵ max))
+        (x* (vector-map + x (vector-map (λ(e)(* dt e)) s)))
+        (f* (f x*))]
+    (values x* f*)))
+
+(module+ test
+  ; Test search-along-direction
+  (let[(f (λ (v) (let [(x (vector-ref v 1))] (* (sub1 x)(sub1 x)))))];only second element is significant, minimum at v=#(0 1 0)(
+    (define-values (x* f*)(search-along-direction #(0 1 0) #(0 0 0) f 0.5 0.01 5))
+    (check-= f* 0 .01)
+    (check-= (vector-ref x* 0) 0 .01)
+    (check-= (vector-ref x* 1) 1 .01)
+    (check-= (vector-ref x* 2) 0 .01))
+
+  ; Tests of powell-n
+  (define f (gen-random-f -10. #(1. 2. 3. 4.)))
+  (powell-n f #(0 0 0 0) 0.1 0.001 1))
   

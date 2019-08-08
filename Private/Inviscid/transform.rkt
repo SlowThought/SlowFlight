@@ -8,11 +8,13 @@
 |#
 
 (require racket/math              ; for π
+         racket/vector            ; for vector-map
          "./potential.rkt"        ; for circle generation
          "../Utility/powell.rkt") ; for optimization routines
 
 ;;; Fit transform to set of input points. ws are values of w in "warped", airfoil space
-(define (fit-transform-to-points ws)
+
+(define (fit-transform-to-points ws θs j0 c0)
   (define n (vector-length ws))
   (define n-1 (sub1 n))
   ;; Find trailing edge - to account for blunt trailing edge, or refined calculations using displacement boundary
@@ -20,40 +22,35 @@
   (define wte (/ (+ (vector-ref ws 0)
                     (vector-ref ws n-1))
                  2.))
-  ;; Estimate leading edge (it can be a really gross estimate, wouldn't use it for chord/coefficient calculation)
-  (define wle (vector-ref ws (quotient n 2)))
-  ;; guess inititial values for j0, c0 (the center of the Joukowsky transform, and the center of the circle to be mapped)
-  (define j0 (/ (+ wle wte) 2))
-  (define c0 (+ j0 -0.01+0.01i)) ; somewhat reasonable for airfoils of chord 1, should work in any case
-  ;; given j0, c0, find an error value
-   ; (let loop [(j0 j0)(c0 c0)(θs (build-vector n (λ(i) (* 2 pi (/ i n)))))(i 0)]
-  (define θs (build-vector n (λ(i) (* 2 pi (/ i n))))); this belongs in above loop.
-  
-   ;    (if (= i 10)
-   ;        (return-relevant-parameters)
-   ;        (begin
-              ; compute dependent parameters
-              ; create (J z), (C θ)
-              (define-values (J b2 zte)(make-J-transform j0 wte))
-              (define a (- zte c0))
-              (define C (make-circle c0 a))
-              ; find points on circle that map closely to ws
-              ; may need more than one pass
-              (for [(i (in-range 1 (sub1 n-1)))]
-                (vector-set! θs i (find-best-θ (λ (t) (J (C t)))
-                                               (vector-ref ws i)
-                                               (vector-ref θs (sub1 i))
-                                               (vector-ref θs i)
-                                               (vector-ref θs (add1 i)))))
-     ; sum up square of distance between ws and (J(C(θs))
-     ; pick new j0, c0 to reduce error
-  )
-  
+; Following estimates belong elsewhere in the call chain
+;  ;; Estimate leading edge (it can be a really gross estimate, wouldn't use it for chord/coefficient calculation)
+;  (define wle (vector-ref ws (quotient n 2)))
+;  ;; guess inititial values for j0, c0 (the center of the Joukowsky transform, and the center of the circle to be mapped)
+;  (define j0 (/ (+ wle wte) 2.))
+;  (define c0 (+ j0 -0.01+0.01i)) ; somewhat reasonable for airfoils of chord 1, should work in any case
+  ; compute dependent parameters
+  ; create (J z), (C θ)
+  (define-values (J b2 zte)(make-J-transform j0 wte))
+  (define a (- zte c0))
+  (define C (make-circle c0 a))
+  ; Improve θ estimates
+  ; may need more than one pass
+  (for [(i (in-range 1 (sub1 n-1)))]
+    (vector-set! θs i (find-best-θ (λ (t) (J (C t)))
+                                   (vector-ref ws i)
+                                   (vector-ref θs (sub1 i))
+                                   (vector-ref θs i)
+                                   (vector-ref θs (add1 i)))))
+  ; The exact transform w = T(z) = J(z)+K(z). Find K for specific ws
+  (define Ks (vector-map (λ (w θ) (- w (J (C θ)))) ws θs))
+  ; Return what we've learned
+  (values wte J b2 zte a C θs Ks))
+
 ; given j0, wte, compute suitable Joukowsky transform and useful parameters
 (define (make-J-transform j0 wte)
   (define b2 (/ (* (- wte j0)(- wte j0)) 4))
   (define zte (/ (+ j0 wte) 2))
-  (values (λ (z) (+ (- z j0)(/ b2 (- z j0)))) b2 zte))
+  (values (λ (z) (+ z (/ b2 (- z j0)))) b2 zte))
 
 ; find θ such that f(θ) closest to w, given 3 guesses at θ
 (define (find-best-θ f w t1 t2 t3)
@@ -66,3 +63,13 @@
   (define r (real-part z))
   (define i (imag-part z))
   (+ (* r r)(* i i)))
+
+; test code
+(define ws #( 1. 0.8+0.04i 0.6+0.08i 0.4+0.11i 0.3+0.12i 0.2+0.11i 0.1+0.09i
+              0.0+0.06i 0.1+0.03i 0.2+0.01i 0.3 0.4 0.6 0.8 1.0))
+(define θs (build-vector 15 (λ (i) (/(* i 2 pi) 14))))
+(define j0 0.5+0.03i)
+(define c0 0.49+0.02i)
+ 
+(define-values (wte J b2 zte a C new-θs Ks)
+  (fit-transform-to-points ws θs j0 c0))
