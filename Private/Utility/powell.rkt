@@ -160,21 +160,40 @@
   (vector-set! xs 0 x0)
   (define fs (make-vector n+1))
   (vector-set! fs 0 (f x0))
-  ; Perform search
-  (for*[(i (in-range max))
-        (j (in-range n))]
-    (define k (add1 j))
-    (let-values([(x* f*)(search-along-direction (vector-ref ss j)
+  ; Big loop
+  (for [(m (in-range max))]
+    (cond [(> m n)
+           (printf "Utility/powell.rkt/(powell-n ...): Warning -- Search vectors likely no longer independent.~n")])
+    ; Perform search
+    (for*[(i (in-range max))
+          (j (in-range n))]
+      (define k (add1 j))
+      (let-values([(x* f*)
+                   (search-along-direction (vector-ref ss j)
                                            (vector-ref xs j)
                                            f h ϵ max)])
-      (vector-set! xs k x*)
-      (vector-set! fs k f*)))
-  ; Identify least fruitful search direction
-  ; Replace least fruitful with first
-  ; Replace first with best (from x0 to xn-2, we exclude last search direction because best should be normal to it)
-  (printf "powell-n isn't done yet.~n"))
+        (vector-set! xs k x*)
+        (vector-set! fs k f*)))
+    ; Identify least fruitful search direction
+    (let [(k 0) ;k for kill this vector
+          (dxk (vector-diff^2 (vector-ref xs 0)(vector-ref xs 1)))]
+      (for [(i (in-range 1 n))]
+        (let [(dxi (vector-diff^2 (vector-ref xs i)(vector-ref xs (add1 i))))]
+          (cond [(> dxi dxk)
+                 (set! k i)
+                 (set! dxk dxi)])))
+      ; Replace least fruitful with first
+      (vector-set! ss k (vector-ref ss 0)))
+    ; Replace first with best (from x0 to xn-2, we exclude last search direction because best should be normal to it)
+    (vector-set! ss 0 (let*[(dx (vector-map - (vector-ref xs (- n 2)) (vector-ref xs 0)))
+                            (ndx (sqrt (vector-diff^2 (vector-ref xs (- n 2)) (vector-ref xs 0))))]
+                        (vector-map (λ (e) (/ e ndx)) dx)))
+    ; Repeat search with new search vectors; replace x0, f0
+    (vector-set! xs 0 (vector-ref xs n))
+    (vector-set! fs 0 (vector-ref fs n)))
+  (printf "powell-n likely isn't done. Returns recent search results for now.~n")
+  (values xs fs))
 ;; powell helper functions
-
 
 ; build-basis-vectors generates n normal vectors of dimension n
 (define (build-basis-vectors n)
@@ -182,8 +201,17 @@
                     (define v (make-vector n 0.))
                     (vector-set! v i 1.)
                     v)))
+  
+; measure magnitude of difference between vectors as sum of squares of differences of elements
+(define (vector-diff^2 v1 v2)
+  (for/fold [(return 0.)]
+            [(x1 (in-vector v1))
+             (x2 (in-vector v2))]
+    (+ return (*(- x1 x2)(- x1 x2)))))
+  
 (module+ test
-  (check-equal? (build-basis-vectors 2) #(#(1.0 0.0)#(0.0 1.0))))
+  (check-equal? (build-basis-vectors 2) #(#(1.0 0.0)#(0.0 1.0)))
+  (check-equal? (vector-diff^2 #(1 2 3) #(2 3 2)) 3.))
 
 ; test infrastructure -- generate random nd quadratic equations
 (module+ test
