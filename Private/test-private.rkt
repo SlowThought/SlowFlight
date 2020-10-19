@@ -1,7 +1,7 @@
 #lang racket/base
-(require rackunit)
+(require typed/rackunit)
 (provide (all-defined-out)
-         (all-from-out rackunit))
+         (all-from-out typed/rackunit))
 
 ;; Testing tolerance, based so far on experimentation
 (define epsilon 1e-14)
