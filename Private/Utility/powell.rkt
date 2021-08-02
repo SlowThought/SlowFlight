@@ -1,198 +1,70 @@
 #lang racket/base
-(require math/number-theory
-         racket/math)
+(require "./1d-search.rkt" ; for powell-1, fv->fr
+         math/number-theory
+         racket/future
+         racket/math
+         racket/vector)
 (provide powell-1); powell)
 (module+ test
   (require plot "../test-private.rkt")
   (printf"powell.rkt: tests running.~n"))
 
-#| powell-1 finds minimum of quadratic function f(t) 
+; Powell too much algorithm. Just throw CPU cycles at the problem
+;#| powell-n finds minimum of real function of vector of reals of arbitrary dimension.
+;   Initially, search is along normal unit vectors. Search results are used to
+;   modify the search vectors to approximate a gradient descent.
+;|#
+;
+;(define (powell-n f x0 h ϵ max)
+;  ; f(x) is function to be minimized - x is a vector
+;  ; x0 is starting position, a vector
+;  ; h is initial step size along search vector
+;  ; epsilon is step size limit, if we move less than epsilon in a given direction, we stop
+;  ; max is the max number of iterations of the algorithm
+;  (define n (vector-length x0))
+;  (define n+1 (add1 n))
+;  ; Search vectors
+;  (define e (build-basis-vectors n))
+;  (define ss e)
+;  ; Search history
+;  (define xs (make-vector n+1 (make-vector n 0)))
+;  (vector-set! xs 0 x0)
+;  (define fs (make-vector n+1))
+;  (vector-set! fs 0 (f x0))
+;  ; Big loop
+;  (for [(m (in-range max))]
+;    (cond [(= (remainder m n))
+;           (set! ss e)])
+;    ; Perform search
+;    (for*[(i (in-range max))
+;          (j (in-range n))]
+;      (define k (add1 j))
+;      (let-values([(x* f*)
+;                   (search-along-direction (vector-ref ss j)
+;                                           (vector-ref xs j)
+;                                           f h ϵ max)])
+;        (vector-set! xs k x*)
+;        (vector-set! fs k f*)))
+;    ; Identify least fruitful search direction
+;    (let [(k 0) ;k for kill this vector
+;          (dxk (vector-diff^2 (vector-ref xs 0)(vector-ref xs 1)))]
+;      (for [(i (in-range 1 n))]
+;        (let [(dxi (vector-diff^2 (vector-ref xs i)(vector-ref xs (add1 i))))]
+;          (cond [(< dxi dxk)
+;                 (set! k i)
+;                 (set! dxk dxi)])))
+;      ; Replace least fruitful with first
+;      (vector-set! ss k (vector-ref ss 0)))
+;    ; Replace first with best (from x0 to xn-2, we exclude last search direction because best should be normal to it)
+;    (vector-set! ss 0 (let*[(dx (vector-map - (vector-ref xs (- n 2)) (vector-ref xs 0)))
+;                            (ndx (sqrt (vector-diff^2 (vector-ref xs (- n 2)) (vector-ref xs 0))))]
+;                        (vector-map (λ (e) (/ e ndx)) dx)))
+;    ; Repeat search with new search vectors; replace x0, f0
+;    (vector-set! xs 0 (vector-ref xs n))
+;    (vector-set! fs 0 (vector-ref fs n)))
+;  (printf "powell-n likely isn't done. Returns recent search results for now.~n")
+;  (values xs fs))
 
-   f(t) = at^2 + bt +c
-
-   Minimum (ok, extreme, may be min or max, but we'll be building well behaved functions) when
-   derivative is zero.
-
-   f' = 2at + b = 0. tmin = -b/2a.
-
-   We are solving the linear system
-
-     | tl^2 tl 1||a| |fl|
-     | tm^2 tm 1||b}=|fm|
-     | tr^2 tr 1||c| |fr|
-
-    We don't need c for our minimum calculation. We use method of determinants to find a and b.
-    We don't actcually calculate a or b, as both involve dividing by the same determinant d, and
-    so the ds cancel in the final calculation.
-
-    We will be applying powell-1 to NON-quadratic equations, but everything near enough its minimum
-    LOOKS quadratic. powell-1 iterates to find bounds within which f is quadratic enough.
-
-    powell-1 assumes we've handed it well behaved functions, therefore no safety checks.
-
-    f is the function to be minimized
-    xl is the left (min) guess at x
-    xm is the middle (best) guess
-    xr is the right (max) guess
-    ϵ is the tolerance (if |x* - xm| < ϵ, we quit)
-    n is the iteration limit (if we don't converge relatively quickly, we quit)
-|#
-
-(define (powell-1 f xl xm xr ϵ n)
-  (define fl (f xl))
-  (define fm (f xm))
-  (define fr (f xr))
-  (let loop [(fl fl)(fm fm)(fr fr)(xl xl)(xm xm)(xr xr)(i 0)]
-    (if (= i n) xm
-        (let [(x* (find-minimum fl fm fr xl xm xr))]
-          (cond
-            ; the predicted minimum is close enough to the middle evaluation
-            ((< (abs (- xm x*)) ϵ) x*)
-            ; the predicted minimum is outside the expected range. Based on experience,
-            ; the prediction is likely not far enough outside the range, so we widen the
-            ; window. extreme x is double distance from x* that x* is from old limit.
-            ((< x* xl)(let[(xfl (- (* 3 x*) (* 2 xl)))] ; xfl is extreme far left
-                        (loop (f xfl) (f x*) fl xfl x* xl (add1 i))))
-            ((> x* xr)(let[(xfr  (- (* 3 x*)(* 2 xr)))] ; xfr is extreme far right
-                        (loop fr (f x*) (f xfr) xr x* xfr (add1 i))))
-            ; the predicted minimum is inside the window
-            ((< x* xm)(loop fl (f x*) fm xl x* xm (add1 i)))
-            ( #t ; (> x* xm)
-              (loop fm (f x*) fr xm x* xr (add1 i))))))))
-
-;; Helper functions for powell-1
-
-; Use determinants to solve quadratic equation
-(define (find-minimum fl fm fr
-                      tl tm tr)
-  (let*[(ad (determinant fl tl 1.
-                         fm tm 1.
-                         fr tr 1.))
-        (bd (determinant (sqr tl) fl 1.
-                         (sqr tm) fm 1.
-                         (sqr tr) fr 1.))]
-    (/(- bd) 2. ad)))
-
-; Square a number
-(define (sqr x)(* x x))
-
-; Find the determinant of a 3x3 matrix
-(define (determinant a1 a2 a3
-                     b1 b2 b3
-                     c1 c2 c3)
-  (- (+ (* a1 b2 c3)
-        (* a2 b3 c1)
-        (* a3 b1 c2))
-     (* a1 b3 c2)
-     (* a2 b1 c3)
-     (* a3 b2 c1)))
-
-;(module+ test
-;  (let [(f (λ(t) (+ (sqr (- t 3.)) 2.)))
-;        (ϵ 0.01)]
-;    (display (plot (function f 1 5 #:label "y = (x-3)^2 + 2")))
-;    (check-= (powell-1 f 2 3 4 ϵ 1) 3. ϵ)
-;    (check-= (powell-1 f 3 4 5 ϵ 1) 3. ϵ)
-;    (check-= (powell-1 f 1 2 3 ϵ 1) 3. ϵ)
-;    (check-= (powell-1 f 4 5 6 ϵ 1) 3. ϵ)
-;    (check-= (powell-1 f 0 1 2 ϵ 1) 3. ϵ)
-;    (printf "~nQuadratics should work in one step, regardless of initial guesses.")
-;    (printf "~nIf no error after chart, quadratic minimum evaluated correctly.~n"))
-;  (let*[(quiet-f (λ(t)(- (sqr (sqr (+ t 4.))) 7.)))
-;        (f (λ(t) (begin
-;                   (printf "q")
-;                   (quiet-f t))))
-;        (ϵ 0.01)(n 7)]
-;    ; Parameters ϵ and n chosen to pass below tests. It's clear that the algorithm is 'kinda' working,
-;    ; but quartics are hard, ϵ & n are not ideal, and it's unclear how to choose ϵ & n.
-;    (display (plot (function quiet-f -8 0 #:label "y = (x+4)^4 - 7")))
-;    (printf "~nQuartic tests - q represents a function evaluation.~n")
-;    (printf "~n x = -4 central input ")
-;    (check-= (powell-1 f -5 -4 -3 ϵ n) -4. ϵ)
-;    (printf "~n x = -4 right input ")
-;    (check-= (powell-1 f -6 -5 -4 ϵ n) -4. ϵ)
-;    (printf "~n x = -4 left input ")
-;    (check-= (powell-1 f -4 -3 -2 ϵ n) -4. ϵ)
-;    ; Answer not within origninal bounds, so more tolerance (higher ϵ), and more time (higher n) needed.
-;    (printf "~n inputs to left of -4. ")
-;    (check-= (powell-1 f -7 -6 -5 ϵ (* 2 n)) -4. (* 2 ϵ))
-;    (printf "~n inputs to right of -4. ")
-;    (check-= (powell-1 f -3 -2 -1 ϵ (* 2 n)) -4. (* 2 ϵ))
-;    (printf "~nYou'd think quartics would be easy. They're not. A place for further study. Read comments in code.~n"))
-;  ; Any function with well defined, polite minima should work... if intial bounds avoid impolite extrema.
-;  (let [(f (λ(t) (sin (- t 1.))))
-;        (ϵ 0.01)]
-;    (display (plot (function f 3 6 #:label "y = sin(x - 1)")))
-;    (check-= (powell-1 f 3 4.5 6 ϵ 7)                                                           
-;             (+ (* 3/2 pi) 1.) ϵ)
-;    (printf "~nQuartic fix broke sine solution. n bumped from 5 to 7, ϵ to .01, to get pass. Art vs science.")
-;    (printf "~nIf no error after chart, sine minimum evaluated correctly.~n"))
-;  ; A realistic test similar to actual problem
-;  (let*[(y (λ (x) (- 1/4 (/ x 4))))
-;        (f (λ (x) (+ (sqr (- x 0.8))(sqr (- (y x) 0.07)))))]
-;    (display (plot (function f -1 2 ; x bounds
-;                             #:y-min 0
-;                             #:y-max 4
-;                             #:label "realistic case")))
-;    (check-= (powell-1 f 0 1/2 1 0.005 5) 0.793 0.005)
-;    (printf "~nIf no error after chart, realistic case evaluated correctly.~n"))
-;  )
-; EVERYTHING ABOVE THIS LINE IS GOOD -- TESTS COMMENTED OUT FOR COMPILATION SPEED. UNCOMMENT TESTS BEFORE MOVING ON.
-
-#| powell-n finds minimum of real function of vector of reals of arbitrary dimension.
-   Initially, search is along normal unit vectors. Search results are used to
-   modify the search vectors to approximate a gradient descent.
-|#
-
-(define (powell-n f x0 h ϵ max)
-  ; f(x) is function to be minimized - x is a vector
-  ; x0 is starting position, a vector
-  ; h is initial step size along search vector
-  ; epsilon is step size limit, if we move less than epsilon in a given direction, we stop
-  ; max is the max number of iterations of the algorithm
-  (define n (vector-length x0))
-  (define n+1 (add1 n))
-  ; Search vectors
-  (define e (build-basis-vectors n))
-  (define ss e)
-  ; Search history
-  (define xs (make-vector n+1 (make-vector n 0)))
-  (vector-set! xs 0 x0)
-  (define fs (make-vector n+1))
-  (vector-set! fs 0 (f x0))
-  ; Big loop
-  (for [(m (in-range max))]
-    (cond [(> m n)
-           (printf "Utility/powell.rkt/(powell-n ...): Warning -- Search vectors likely no longer independent.~n")])
-    ; Perform search
-    (for*[(i (in-range max))
-          (j (in-range n))]
-      (define k (add1 j))
-      (let-values([(x* f*)
-                   (search-along-direction (vector-ref ss j)
-                                           (vector-ref xs j)
-                                           f h ϵ max)])
-        (vector-set! xs k x*)
-        (vector-set! fs k f*)))
-    ; Identify least fruitful search direction
-    (let [(k 0) ;k for kill this vector
-          (dxk (vector-diff^2 (vector-ref xs 0)(vector-ref xs 1)))]
-      (for [(i (in-range 1 n))]
-        (let [(dxi (vector-diff^2 (vector-ref xs i)(vector-ref xs (add1 i))))]
-          (cond [(> dxi dxk)
-                 (set! k i)
-                 (set! dxk dxi)])))
-      ; Replace least fruitful with first
-      (vector-set! ss k (vector-ref ss 0)))
-    ; Replace first with best (from x0 to xn-2, we exclude last search direction because best should be normal to it)
-    (vector-set! ss 0 (let*[(dx (vector-map - (vector-ref xs (- n 2)) (vector-ref xs 0)))
-                            (ndx (sqrt (vector-diff^2 (vector-ref xs (- n 2)) (vector-ref xs 0))))]
-                        (vector-map (λ (e) (/ e ndx)) dx)))
-    ; Repeat search with new search vectors; replace x0, f0
-    (vector-set! xs 0 (vector-ref xs n))
-    (vector-set! fs 0 (vector-ref fs n)))
-  (printf "powell-n likely isn't done. Returns recent search results for now.~n")
-  (values xs fs))
 ;; powell helper functions
 
 ; build-basis-vectors generates n normal vectors of dimension n
@@ -238,32 +110,23 @@
       (define dX (matrix- X X*))
       (+ f* (matrix-ref (matrix* (matrix-transpose dX) (matrix* A dX))
                        0 0))))
-  ;; Tests of gen-random-f, 2D examples consistently show expected result
-  ;  (let*[(f (gen-random-f 1. #(1. 1.)))
-  ;        (g (λ (x y) (f (vector x y))))]
-  ;    (plot3d (surface3d g)
-  ;            #:x-min 0
-  ;            #:x-max 2
-  ;            #:y-min 0
-  ;            #:y-max 2))
-  ;    (for-each (λ (x)
-  ;                 (printf "~nX: ~a f(X): ~a " x (f x)))
-  ;              (list #(1. 1.) #(1. 2.) #(2. 1.) #(1. 0.) #(0. 1.)))
-     #| end of gen-random-f tests |#)
-
-; f-of-v->f-of-t casts a function of a vector, a starting point, and a search direction, to a 1d parametric function
-(require racket/vector)
-(define (f-of-v->f-of-t f x0 s)
-  (λ (t) (f (vector-map + x0 (vector-map (λ (x) (* t x)) s)))))
-
-(module+ test
-  (let*[(f (gen-random-f 3 #(0 0 1)))
-        (g (f-of-v->f-of-t f #(0 0 0) #(0 0 1)))]
-    (check-= (g 1) 3 0.00001)))
+  ; Tests of gen-random-f, 2D examples consistently show expected result
+    (let*[(f (gen-random-f 1. #(1. 1.)))
+          (g (λ (x y) (f (vector x y))))]
+      (display (plot3d (surface3d g)
+                       #:x-min 0
+                       #:x-max 2
+                       #:y-min 0
+                       #:y-max 2))
+      (printf "Above you should see a surface with a clear minimum near (1,1)~n")
+      (for-each (λ (x)
+                   (printf "~nX: ~a f(X): ~a " x (f x)))
+                (list #(1. 1.) #(1. 2.) #(2. 1.) #(1. 0.) #(0. 1.))))
+  (printf "If the above values of x and f(x) make sense, then ~nbelieve the random test cases are working.~n"))
 
 ; search-along-direction applies powell-1 to a function of a vector
 (define (search-along-direction s x f h ϵ max)
-  (let*[(g (f-of-v->f-of-t f x s))
+  (let*[(g (fv->fr f x s))
         (dt (powell-1 g (- h) 0 h ϵ max))
         (x* (vector-map + x (vector-map (λ(e)(* dt e)) s)))
         (f* (f x*))]
@@ -276,9 +139,119 @@
     (check-= f* 0 .01)
     (check-= (vector-ref x* 0) 0 .01)
     (check-= (vector-ref x* 1) 1 .01)
-    (check-= (vector-ref x* 2) 0 .01))
+    (check-= (vector-ref x* 2) 0 .01)))
 
-  ; Tests of powell-n
-  (define f (gen-random-f -10. #(1. 2. 3. 4.)))
-  (powell-n f #(0 0 0 0) 0.1 0.001 1))
+#| Experimental algorithms. "king-s" (for sequential) is meant to be equivalent to one cycle of powell-n. "king-p" (for parallel)
+   is meant to use the same pattern but exploit parallelism for a speedup roughly proportional to the number of processors available
+   (assuming dimension of problem is larger than number of processors).
+
+   The King algorithm, for both sequential and parallel, is
+
+   - Search along each basis vector
+   - Search a "best" vector that is normal to last/best search
+   - Search the last/best direction again
+
+   Unlike powell, the search vectors are not updated with conjugate vectors. Rather, we take the two final "good" search directions
+   as good enough, and then start over. Less book keeping should compensate for lost efficiency (if it exists) in original Powell.
+
+|#
+
+(define sad-max 10) ; Max iterations of search-along-direction
+
+(define (king-s f x0 ss h ϵ n)
+  ; f is function to be minimized
+  ; x0 is starting point of search
+  ; ss are search directions
+  ; h is an initial step size
+  ; ϵ is a tolerance, used as a stopping criterion
+  ; n is the dimension of x0 and ss
+  ;; Search each direction in ss sequentially
+  (define x x0)
+  (let [(xs (for/list [(s ss)]
+            (let-values ([(x* f*)(search-along-direction s x f h ϵ sad-max)])
+              (set! x x*)
+              x*)))]
+    ; Search best direction (approx gradient excluding last search)
+    (define best-s (vector-map - (cadr xs) x0))
+    (let-values ([(x* f*)(search-along-direction best-s x f h ϵ sad-max)])
+      ; Search last direction (only available normal to best)
+      (let-values ([(x* f*)(search-along-direction (vector-ref ss (sub1 n)) x* f h ϵ sad-max)])
+        ; Return best input, minimized output
+        (values x* f*)))))
+
+(module+ test
+  (printf "Sequential search test - true min function 3.14, true min location #(1 2 3 4)~n")
+  (let [(f (gen-random-f 3.14 #(1. 2. 3. 4.)))
+        (x0 #(0. 0. 0. 0.))
+        (e (build-basis-vectors 4))
+        (ϵ 0.01)
+        (h 0.1)
+        (n 4)]
+    (for [(i (in-range 5))]
+      (let-values ([(x* f*)(king-s f x0 e h ϵ n)])
+        (printf "X=~a, f(X)=~a~n" x* f*)
+        (set! x0 x*)))
+    (printf "Best X:~a, best f(X):~a~n" x0 (f x0))))
+; 21-07-23 above tested good.
+
+(define (king-p f x0 ss h ϵ n)
+  ; f is function to be minimized
+  ; x0 is starting point of search
+  ; ss are search directions
+  ; h is an initial step size
+  ; ϵ is a tolerance, used as a stopping criterion
+  ; n is the dimension of x0 and ss
+  
+  (define f0 (f x0))
+  ; Search each direction in ss in parallel
+  (define futures (vector-map (λ (s) (future (λ () (search-along-direction s x0 f h ϵ sad-max)))) ss))
+  ; Collect results
+  (define xs (make-vector n))
+  (define fs (make-vector n))
+  (for [(i (in-range n))]
+    (let-values ([(x f)(touch (vector-ref futures i))])
+      (vector-set! xs i x)
+      (vector-set! fs i f)))
+  ; Find best direction
+  (define i* 0)
+  (define f* (vector-ref fs 0))
+  (for [(i (in-range 1 n))]
+    (cond [(< (vector-ref fs i) f*)
+           (set! f* (vector-ref fs i))
+           (set! i* i)]))
+  ; Start at best result of parallel search, exclude that direction
+  (define s* (build-vector n (λ (i) (if (= i i*) 0.
+                                        (- (vector-ref (vector-ref xs i) i)
+                                           (vector-ref x0 i))))))
+  (set!-values (x0 f*)(search-along-direction s* (vector-ref xs i*) f h ϵ sad-max))
+  ; One more search along best direction
+  (search-along-direction (vector-ref ss i*) x0 f h ϵ sad-max))
+
+(module+ test
+  (printf "Parallel search test - early days.~n")
+  (let [(f (gen-random-f 3.14 #(1. 2. 3. 4.)))
+        (x0 #(0. 0. 0. 0.))
+        (e (build-basis-vectors 4))
+        (ϵ 0.01)
+        (h 0.1)]
+    (for [(i (in-range 5))]
+      (let-values ([(x* f*)(king-p f x0 e h ϵ 4)])
+        (printf "X=~a, f(X)=~a~n" x* f*)
+        (set! x0 x*)))
+    (printf "Best X:~a, best f(X):~a~n" x0 (f x0)))
+  (printf "~nParallel seems to work almost as well as sequential, but is it faster?~n")
+  (define x0 #(0. 0. 0. 0.))
+  (define e (build-basis-vectors 4))
+  (define ϵ 0.01)
+  (define h 0.1)
+  (for[(king-x (list king-s king-p))
+       (algorithm (list "Sequential" "Parallel"))]
+    (printf "~s timing results:~s~n"
+            algorithm
+            (time (for [(i (in-range 1000))]
+                    (let [(f(gen-random-f 3.14 #(1. 2. 3. 4.)))]
+                      (king-x f x0 e ϵ h 4)))))))
+; 21-08-01 Parallel is no faster - are we achieving parallelism at all?
+           
+  
   
