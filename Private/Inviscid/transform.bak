@@ -67,7 +67,7 @@
 ; test code
 (define ws #( 1. 0.8+0.04i 0.6+0.08i 0.4+0.11i 0.3+0.12i 0.2+0.11i 0.1+0.09i
               0.0+0.06i 0.1+0.03i 0.2+0.01i 0.3 0.4 0.6 0.8 1.0))
-(define θs (build-vector 15 (λ (i) (* i(/(* 2 pi) 14)))))
+(define θs (build-vector 15 (λ (i) (/(* i 2 pi) 14))))
 (define j0 0.5+0.03i)
 (define c0 0.49+0.02i)
  

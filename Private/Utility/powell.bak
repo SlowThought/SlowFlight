@@ -4,9 +4,7 @@
          racket/future
          racket/math
          racket/vector)
-; Provide the proven. king-p may come along with a typed racket implementation
 (provide build-basis-vectors find-minimum fv->fr king-s powell-1)
-
 (module+ test
   (require plot "../test-private.rkt")
   (printf"powell.rkt: tests running.~n"))

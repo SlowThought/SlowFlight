@@ -4,7 +4,7 @@
 (provide [contract-out (zdot (-> complex? complex? real?))
                        (zcross (-> complex? complex? real?))])
 
-(require "../test-private.rkt")
+(require "test-private.rkt")
 
 ; dot product
 (define (zdot z1 z2)

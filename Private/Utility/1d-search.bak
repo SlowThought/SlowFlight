@@ -3,7 +3,7 @@
    of the form (f Vector: v) to the prior form, given a vector position and vector search direction
 |#
 (require racket/vector)
-(provide find-minimum fv->fr powell-1)
+(provide powell-1 fv->fr)
 
 #| powell-1 finds minimum of quadratic function f(t) 
 
